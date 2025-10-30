@@ -1,0 +1,11 @@
+transformers
+torch
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+requests
+fastapi
+uvicorn
+mlflow
