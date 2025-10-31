@@ -43,6 +43,6 @@ jobs:
 
       # 5. Run model training
       - name: Run model training
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python src/train.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python src/train.py
