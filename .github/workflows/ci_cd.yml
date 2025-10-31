@@ -2,9 +2,9 @@ name: CI/CD Sentiment Model
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/ci-cd-pipeline]
   pull_request:
-    branches: [ main ]
+    branches: [ main, feature/ci-cd-pipeline]
 
 jobs:
   build-and-train:
