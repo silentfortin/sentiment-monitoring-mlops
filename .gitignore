@@ -37,3 +37,8 @@ wandb/
 Thumbs.db
 .idea/
 .vscode/
+
+# Allow the demo dataset
+!data/
+!data/raw/
+!data/raw/social_sentiment.csv
