@@ -46,3 +46,10 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python src/train.py
+
+      # 6. Upload trained model as an artifact
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: roberta_sentiment_model
+          path: models/roberta_sentiment_model/
