@@ -47,8 +47,15 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: python src/train.py
 
-      # 6. Upload trained model as an artifact
+      # 6. Run integration tests (end-to-end)
+      - name: Run integration tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q tests/test_integration.py
+
+      # 7. Upload trained model as an artifact (only if tests passed)
       - name: Upload model artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: roberta_sentiment_model
