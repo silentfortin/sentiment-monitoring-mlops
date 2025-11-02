@@ -51,7 +51,7 @@ jobs:
       - name: Run integration tests
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: pytest -q tests/test_integration.py
+        run: pytest -q tests/integration_test.py
 
       # 7. Upload trained model as an artifact (only if tests passed)
       - name: Upload model artifact
