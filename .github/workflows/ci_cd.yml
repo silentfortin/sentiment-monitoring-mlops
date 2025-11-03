@@ -60,3 +60,32 @@ jobs:
         with:
           name: roberta_sentiment_model
           path: models/roberta_sentiment_model/
+
+      # 8. Push model to Hugging Face Hub (Continuous Deployment)
+      - name: Push model to Hugging Face
+        if: success()
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          python - <<'EOF'
+          from huggingface_hub import login
+          from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+          # Login using the GitHub secret
+          login(token="${{ secrets.HF_TOKEN }}")
+
+          # Define model and repo info
+          model_dir = "models/roberta_sentiment_model"
+          repo_id = "CapDimble/sentiment-monitoring-model"
+
+          # Load model and tokenizer
+          model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+          tokenizer = AutoTokenizer.from_pretrained(model_dir)
+
+          # Push to Hub (auto-versioned)
+          model.push_to_hub(repo_id)
+          tokenizer.push_to_hub(repo_id)
+
+          print(f"Model successfully pushed to {repo_id}")
+          EOF
