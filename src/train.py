@@ -10,20 +10,20 @@ from transformers import (
 )
 from src.preprocess import preprocess_texts
 
-# === CONFIG ===
+# CONFIG
 MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 DATA_PATH = "data/raw/social_sentiment.csv"
 OUTPUT_DIR = "models/roberta_sentiment_model"
 
 label_map = {"negative": 0, "neutral": 1, "positive": 2}
 
-# === INITIALIZATION ===
+# INITIALIZATION 
 set_seed(42)
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
 
-# === FUNCTIONS ===
+# FUNCTIONS
 def load_data(path: str):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dataset not found at: {path}")
