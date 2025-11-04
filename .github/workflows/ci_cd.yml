@@ -62,34 +62,37 @@ jobs:
           pip install evaluate datasets huggingface_hub transformers
           python src/model_compare.py
 
-      # 8. Upload promoted model as an artifact
-      - name: Upload promoted model artifact
+      # 8. Upload new model as an artifact (for manual download if needed)
+      - name: Upload trained model artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: production_model
-          path: models/production_model/
+          name: roberta_sentiment_model
+          path: models/roberta_sentiment_model/
 
-      # 9. Push promoted model to Hugging Face Hub (Continuous Deployment)
-      - name: Push model to Hugging Face
+      # 9. Push to Hugging Face only if model_compare.py promoted it
+      - name: Push promoted model to Hugging Face Hub
         if: success()
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'EOF'
+          import os
           from huggingface_hub import login
           from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
           login(token="${{ secrets.HF_TOKEN }}")
 
           repo_id = "CapDimble/sentiment-monitoring-model"
-          model_dir = "models/production_model"
+          model_dir = "models/roberta_sentiment_model"
 
-          model = AutoModelForSequenceClassification.from_pretrained(model_dir)
-          tokenizer = AutoTokenizer.from_pretrained(model_dir)
-
-          model.push_to_hub(repo_id)
-          tokenizer.push_to_hub(repo_id)
-
-          print(f"✅ Production model successfully pushed to {repo_id}")
+          if os.path.exists(model_dir):
+              model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+              tokenizer = AutoTokenizer.from_pretrained(model_dir)
+              model.push_to_hub(repo_id)
+              tokenizer.push_to_hub(repo_id)
+              print(f"Model successfully pushed to {repo_id}")
+          else:
+              print("No new model to push. Skipping deployment.")
           EOF
+
