@@ -6,22 +6,26 @@ on:
   pull_request:
     branches: [ main, feature/ci-cd-pipeline ]
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build-and-train:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # Checkout the repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. Set up Python environment
+      # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3. Install dependencies
+      # Install project dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -29,31 +33,35 @@ jobs:
           pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
           pip install transformers datasets evaluate huggingface_hub
 
-      # 4. Sanity test: dataset + tokenizer
+      # Run a lightweight sanity test to ensure dataset and tokenizer load properly
       - name: Run sanity tests
         run: |
           python - <<'EOF'
           import pandas as pd
+          from transformers import AutoTokenizer
           df = pd.read_csv("data/raw/social_sentiment.csv")
           assert not df.empty, "Dataset is empty!"
-          from transformers import AutoTokenizer
           tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-          print("✅ Dataset and tokenizer loaded successfully.")
+          print("Dataset and tokenizer loaded successfully.")
           EOF
 
-      # 5. Train model
+      # Generate a model version tag based on timestamp
+      - name: Set model version tag
+        run: echo "MODEL_VERSION=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+
+      # Train the sentiment model
       - name: Run model training
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python src/train.py
 
-      # 6. Run integration tests (end-to-end)
+      # Run integration tests after training
       - name: Run integration tests
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: pytest -q tests/integration_test.py
 
-      # 7. Compare with production model on Hugging Face and update only if improved
+      # Compare new model performance and push only if improved
       - name: Compare models and deploy if improved
         if: success()
         env:
@@ -62,16 +70,16 @@ jobs:
           pip install evaluate datasets huggingface_hub transformers
           python src/model_compare.py
 
-      # 8. Upload new model as an artifact (for manual download if needed)
-      - name: Upload trained model artifact
+      # Upload trained model as a build artifact for inspection
+      - name: Upload model artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: roberta_sentiment_model
           path: models/roberta_sentiment_model/
 
-      # 9. Push to Hugging Face only if model_compare.py promoted it
-      - name: Push promoted model to Hugging Face Hub
+      # Push the improved model to Hugging Face Hub
+      - name: Push promoted model to Hugging Face
         if: success()
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -87,12 +95,12 @@ jobs:
           model_dir = "models/roberta_sentiment_model"
 
           if os.path.exists(model_dir):
+              print(f"Pushing model version ${{ env.MODEL_VERSION }} to Hugging Face Hub...")
               model = AutoModelForSequenceClassification.from_pretrained(model_dir)
               tokenizer = AutoTokenizer.from_pretrained(model_dir)
-              model.push_to_hub(repo_id)
+              model.push_to_hub(repo_id, commit_message=f"Auto-deploy {os.getenv('MODEL_VERSION')}")
               tokenizer.push_to_hub(repo_id)
-              print(f"Model successfully pushed to {repo_id}")
+              print(f"Model version {os.getenv('MODEL_VERSION')} successfully pushed to {repo_id}")
           else:
-              print("No new model to push. Skipping deployment.")
+              print("No new model found for deployment — skipping push.")
           EOF
-

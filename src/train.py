@@ -9,25 +9,24 @@ from transformers import (
 )
 from src.preprocess import preprocess_texts
 
-# Add project root (one level up) to PYTHONPATH
+# Add project root to PYTHONPATH for relative imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# config
+# Configuration
 MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 DATA_PATH = "data/raw/social_sentiment.csv"
 OUTPUT_DIR = "models/roberta_sentiment_model"
 
 label_map = {"negative": 0, "neutral": 1, "positive": 2}
 
-# initialization
+# Initialization
 set_seed(42)
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
 
-# fucntions
 def load_data(path: str):
-    """Load and preprocess the dataset."""
+    """Load, clean, and prepare the dataset for training."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dataset not found at: {path}")
     print(f"Loading dataset from: {path}")
@@ -42,7 +41,7 @@ def load_data(path: str):
 
 
 def tokenize_data(df):
-    """Tokenize text data for model input."""
+    """Tokenize texts for Transformer input."""
     dataset = Dataset.from_pandas(df)
     tokenized_ds = dataset.map(
         lambda x: tokenizer(x["text"], truncation=True, padding=True),
@@ -52,15 +51,14 @@ def tokenize_data(df):
 
 
 def compute_metrics(eval_pred):
-    """Compute accuracy metric during evaluation."""
+    """Return accuracy from evaluation predictions."""
     logits, labels = eval_pred
     predictions = logits.argmax(axis=-1)
-    acc = accuracy_score(labels, predictions)
-    return {"accuracy": acc}
+    return {"accuracy": accuracy_score(labels, predictions)}
 
 
 def train_model(tokenized_ds):
-    """Train the sentiment model and save metrics and weights."""
+    """Train, evaluate, and save the fine-tuned sentiment model."""
     print("Starting training...")
     model = AutoModelForSequenceClassification.from_pretrained(MODEL, num_labels=3)
     
@@ -75,8 +73,7 @@ def train_model(tokenized_ds):
         logging_steps=10,
     )
     
-    # Use a small subset of the dataset for quick evaluation
-    eval_subset = tokenized_ds.select(range(min(100, len(tokenized_ds))))
+    eval_subset = tokenized_ds.select(range(min(100, len(tokenized_ds))))  # quick validation
 
     trainer = Trainer(
         model=model,
@@ -90,25 +87,21 @@ def train_model(tokenized_ds):
     
     trainer.train()
 
-    # Evaluate model accuracy on eval subset
     metrics = trainer.evaluate()
     acc = metrics.get("eval_accuracy", 0.0)
     print(f"Model accuracy: {acc:.3f}")
 
-    # Save model, tokenizer, and metrics
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     model.save_pretrained(OUTPUT_DIR)
     tokenizer.save_pretrained(OUTPUT_DIR)
 
-    metrics_path = os.path.join(OUTPUT_DIR, "metrics.json")
-    with open(metrics_path, "w") as f:
+    with open(os.path.join(OUTPUT_DIR, "metrics.json"), "w") as f:
         json.dump({"accuracy": acc}, f)
     
     print(f"Training completed. Model and metrics saved to {OUTPUT_DIR}")
 
-
 def main():
-    """Main execution entrypoint."""
+    """Main training pipeline."""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     df = load_data(DATA_PATH)
     tokenized_ds = tokenize_data(df)

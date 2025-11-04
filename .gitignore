@@ -1,4 +1,4 @@
-# Python and Virtual Environment
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -9,36 +9,41 @@ __pycache__/
 env/
 venv/
 
-# Jupyter Notebooks and Temp Files
+# Jupyter notebooks and logs
 .ipynb_checkpoints/
 *.ipynb_save
 *.ipynb_tmp
 *.log
 
-# Data and Models
-/data/
- /results/
- /outputs/
- /models/
- /checkpoints/
+# Data and model artifacts
+data/
+results/
+outputs/
+models/
+checkpoints/
 *.csv
 *.tsv
 *.jsonl
 
-# MLflow and Cache
+# MLflow, Hugging Face, cache
 mlruns/
 .cache/
 huggingface/
 datasets/
 wandb/
 
-# OS and IDE Files
+# OS and IDE files
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 
-# Allow the demo dataset
+# Exceptions
 !data/
 !data/raw/
 !data/raw/social_sentiment.csv
+!.github/
+!.github/workflows/
+!requirements.txt
+!README.md
+!sentiment_model.ipynb

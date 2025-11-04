@@ -5,7 +5,8 @@ from transformers import pipeline, AutoModelForSequenceClassification, AutoToken
 from huggingface_hub import login
 import evaluate
 
-# Configuration
+# Compare a new local sentiment model against the current production model on Hugging Face
+
 repo_id = "CapDimble/sentiment-monitoring-model"  # current production model on HF Hub
 new_model_dir = "models/roberta_sentiment_model"  # newly trained local model
 new_metrics_path = os.path.join(new_model_dir, "metrics.json")
