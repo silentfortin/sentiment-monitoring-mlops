@@ -1,28 +1,53 @@
-import json
 import os
-import shutil
+import json
+from datasets import load_dataset
+from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
+from huggingface_hub import login
+import evaluate
 
-def compare_and_promote(new_model_dir="models/roberta_sentiment_model",
-                        prod_model_dir="models/production_model",
-                        base_metrics_path="models/base_model_metrics.json"):
+# Configuration
+repo_id = "CapDimble/sentiment-monitoring-model"  # current production model on HF Hub
+new_model_dir = "models/roberta_sentiment_model"  # newly trained local model
+new_metrics_path = os.path.join(new_model_dir, "metrics.json")
 
-    new_metrics = json.load(open(os.path.join(new_model_dir, "metrics.json")))
-    new_acc = new_metrics["accuracy"]
+# Authenticate with Hugging Face
+hf_token = os.getenv("HF_TOKEN")
+if hf_token:
+    login(token=hf_token)
 
-    if not os.path.exists(prod_model_dir):
-        print("No production model found — using base metrics.")
-        if not os.path.exists(base_metrics_path):
-            print("Base metrics not found — promoting current model.")
-            shutil.copytree(new_model_dir, prod_model_dir, dirs_exist_ok=True)
-            return
-        old_acc = json.load(open(base_metrics_path))["accuracy"]
-    else:
-        old_acc = json.load(open(os.path.join(prod_model_dir, "metrics.json")))["accuracy"]
+# Load evaluation dataset
+dataset = load_dataset("tweet_eval", "sentiment", split="test[:200]")
+metric = evaluate.load("accuracy")
 
-    print(f"Old accuracy: {old_acc:.3f} | New accuracy: {new_acc:.3f}")
+# Evaluate production model from Hugging Face Hub
+print("Evaluating current production model from Hugging Face...")
+prod_clf = pipeline("sentiment-analysis", model=repo_id)
+prod_preds = [prod_clf(text)[0]["label"] for text in dataset["text"]]
+label_map = {"negative": 0, "neutral": 1, "positive": 2}
+prod_encoded = [label_map[p] for p in prod_preds]
+prod_acc = metric.compute(references=dataset["label"], predictions=prod_encoded)["accuracy"]
+print(f"Production model accuracy: {prod_acc:.3f}")
 
-    if new_acc > old_acc:
-        print(f"Promoting new model ({new_acc:.3f} > {old_acc:.3f})")
-        shutil.copytree(new_model_dir, prod_model_dir, dirs_exist_ok=True)
-    else:
-        print(f"Keeping old model ({new_acc:.3f} >= {old_acc:.3f})")
+# Evaluate new local model
+print("Evaluating new trained model...")
+new_clf = pipeline("sentiment-analysis", model=new_model_dir)
+new_preds = [new_clf(text)[0]["label"] for text in dataset["text"]]
+new_encoded = [label_map[p] for p in new_preds]
+new_acc = metric.compute(references=dataset["label"], predictions=new_encoded)["accuracy"]
+print(f"New model accuracy: {new_acc:.3f}")
+
+# Save new metrics
+os.makedirs(new_model_dir, exist_ok=True)
+with open(new_metrics_path, "w") as f:
+    json.dump({"accuracy": new_acc}, f, indent=4)
+
+# Compare and decide
+if new_acc > prod_acc:
+    print("New model performs better. Promoting to production on Hugging Face Hub...")
+    model = AutoModelForSequenceClassification.from_pretrained(new_model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(new_model_dir)
+    model.push_to_hub(repo_id)
+    tokenizer.push_to_hub(repo_id)
+    print("Model successfully updated on Hugging Face.")
+else:
+    print("New model did not outperform the production model. Keeping current version.")

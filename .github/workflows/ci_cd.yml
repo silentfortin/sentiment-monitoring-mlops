@@ -53,12 +53,14 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: pytest -q tests/integration_test.py
 
-      # 7. Compare and promote model (only if training/tests succeeded)
-      - name: Compare and promote model
+      # 7. Compare with production model on Hugging Face and update only if improved
+      - name: Compare models and deploy if improved
         if: success()
         env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: python src/model_compare.py
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install evaluate datasets huggingface_hub transformers
+          python src/model_compare.py
 
       # 8. Upload promoted model as an artifact
       - name: Upload promoted model artifact
