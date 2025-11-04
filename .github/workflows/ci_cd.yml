@@ -5,6 +5,9 @@ on:
     branches: [ main, feature/ci-cd-pipeline ]
   pull_request:
     branches: [ main, feature/ci-cd-pipeline ]
+  schedule:
+    # automatic retraining
+    - cron: '0 6 * * 1'  
 
 permissions:
   contents: read
