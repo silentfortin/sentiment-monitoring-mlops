@@ -2,16 +2,16 @@ name: CI/CD Sentiment Model
 
 on:
   push:
-    branches: [ main, feature/ci-cd-pipeline]
+    branches: [ main, feature/ci-cd-pipeline ]
   pull_request:
-    branches: [ main, feature/ci-cd-pipeline]
+    branches: [ main, feature/ci-cd-pipeline ]
 
 jobs:
   build-and-train:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Clone the repository
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -27,9 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          pip install transformers datasets evaluate
+          pip install transformers datasets evaluate huggingface_hub
 
-      # 4. Run sanity tests to ensure dataset and tokenizer load correctly
+      # 4. Sanity test: dataset + tokenizer
       - name: Run sanity tests
         run: |
           python - <<'EOF'
@@ -38,10 +38,10 @@ jobs:
           assert not df.empty, "Dataset is empty!"
           from transformers import AutoTokenizer
           tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-          print("Dataset and tokenizer loaded successfully.")
+          print("✅ Dataset and tokenizer loaded successfully.")
           EOF
 
-      # 5. Run model training
+      # 5. Train model
       - name: Run model training
         env:
           PYTHONPATH: ${{ github.workspace }}
@@ -53,39 +53,41 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: pytest -q tests/integration_test.py
 
-      # 7. Upload trained model as an artifact (only if tests passed)
-      - name: Upload model artifact
+      # 7. Compare and promote model (only if training/tests succeeded)
+      - name: Compare and promote model
+        if: success()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python src/model_compare.py
+
+      # 8. Upload promoted model as an artifact
+      - name: Upload promoted model artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: roberta_sentiment_model
-          path: models/roberta_sentiment_model/
+          name: production_model
+          path: models/production_model/
 
-      # 8. Push model to Hugging Face Hub (Continuous Deployment)
+      # 9. Push promoted model to Hugging Face Hub (Continuous Deployment)
       - name: Push model to Hugging Face
         if: success()
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          pip install huggingface_hub
           python - <<'EOF'
           from huggingface_hub import login
           from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-          # Login using the GitHub secret
           login(token="${{ secrets.HF_TOKEN }}")
 
-          # Define model and repo info
-          model_dir = "models/roberta_sentiment_model"
           repo_id = "CapDimble/sentiment-monitoring-model"
+          model_dir = "models/production_model"
 
-          # Load model and tokenizer
           model = AutoModelForSequenceClassification.from_pretrained(model_dir)
           tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
-          # Push to Hub (auto-versioned)
           model.push_to_hub(repo_id)
           tokenizer.push_to_hub(repo_id)
 
-          print(f"Model successfully pushed to {repo_id}")
+          print(f"✅ Production model successfully pushed to {repo_id}")
           EOF
