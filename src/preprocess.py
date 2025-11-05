@@ -2,6 +2,8 @@ import re
 import string
 import pandas as pd
 
+# Text cleaning utilities tailored for short social posts
+
 # Precompiled regex patterns for performance
 emoji_pattern = re.compile("[" 
     u"\U0001F600-\U0001F64F"  # Emoticons

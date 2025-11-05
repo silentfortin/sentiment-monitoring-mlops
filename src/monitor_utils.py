@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from transformers import pipeline
 
-# Configuration
+# Helper utilities for simple production monitoring and logging.
+
 MODEL_ID = "CapDimble/sentiment-monitoring-model"  # Pretrained model on Hugging Face
 LOG_DIR = "data/monitoring"
 LOG_FILE = os.path.join(LOG_DIR, "sentiment_log.csv")

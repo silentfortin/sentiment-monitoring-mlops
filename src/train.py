@@ -9,6 +9,8 @@ from transformers import (
 )
 from src.preprocess import preprocess_texts
 
+# Training script for RoBERTa-based sentiment classification
+
 # Add project root to PYTHONPATH for relative imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

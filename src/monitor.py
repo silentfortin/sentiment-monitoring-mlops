@@ -1,3 +1,4 @@
+# CLI entry-point to run batch inference and produce monitoring summaries.
 import sys, os
 
 # Add project root (one level up) to PYTHONPATH for relative imports
