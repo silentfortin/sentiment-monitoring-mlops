@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [ main, feature/ci-cd-pipeline ]
   schedule:
-    # automatic retraining
-    - cron: '0 6 * * 1'  
+    # Weekly retraining (Monday at 06:00 UTC)
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
@@ -18,25 +18,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Python environment
+      # 2. Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
-      # Install project dependencies
+      # 3. Install dependencies (requirements + CPU-safe PyTorch)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          pip install transformers datasets evaluate huggingface_hub
+          # Force CPU-only PyTorch build for GitHub runners
+          pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-      # Run a lightweight sanity test to ensure dataset and tokenizer load properly
+      # 4. Sanity test: check dataset and tokenizer
       - name: Run sanity tests
         run: |
           python - <<'EOF'
@@ -44,36 +45,34 @@ jobs:
           from transformers import AutoTokenizer
           df = pd.read_csv("data/raw/social_sentiment.csv")
           assert not df.empty, "Dataset is empty!"
-          tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+          _ = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
           print("Dataset and tokenizer loaded successfully.")
           EOF
 
-      # Generate a model version tag based on timestamp
+      # 5. Generate model version tag
       - name: Set model version tag
         run: echo "MODEL_VERSION=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
-      # Train the sentiment model
+      # 6. Train model
       - name: Run model training
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python src/train.py
 
-      # Run integration tests after training
+      # 7. Run integration tests
       - name: Run integration tests
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: pytest -q tests/integration_test.py
 
-      # Compare new model performance and push only if improved
+      # 8. Compare with production model and deploy only if improved
       - name: Compare models and deploy if improved
         if: success()
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          pip install evaluate datasets huggingface_hub transformers
-          python src/model_compare.py
+        run: python src/model_compare.py
 
-      # Upload trained model as a build artifact for inspection
+      # 9. Upload model artifact (optional)
       - name: Upload model artifact
         if: success()
         uses: actions/upload-artifact@v4
@@ -81,7 +80,7 @@ jobs:
           name: roberta_sentiment_model
           path: models/roberta_sentiment_model/
 
-      # Push the improved model to Hugging Face Hub
+      # 10. Push promoted model to Hugging Face Hub
       - name: Push promoted model to Hugging Face
         if: success()
         env:
