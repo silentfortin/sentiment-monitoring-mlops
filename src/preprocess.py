@@ -2,12 +2,14 @@ import re
 import string
 import pandas as pd
 
-# Pre-compile regexes
-emoji_pattern = re.compile("["
-    u"\U0001F600-\U0001F64F"  # emoticons
-    u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-    u"\U0001F680-\U0001F6FF"  # transport & map symbols
-    u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+# Text cleaning utilities tailored for short social posts
+
+# Precompiled regex patterns for performance
+emoji_pattern = re.compile("[" 
+    u"\U0001F600-\U0001F64F"  # Emoticons
+    u"\U0001F300-\U0001F5FF"  # Symbols & pictographs
+    u"\U0001F680-\U0001F6FF"  # Transport & map symbols
+    u"\U0001F1E0-\U0001F1FF"  # Flags
     u"\u2702-\u27B0"
     u"\u24C2-\U0001F251"
     "]+", flags=re.UNICODE)
@@ -18,7 +20,7 @@ hashtag_pattern = re.compile(r'#([^\s]+)')
 short_words_pattern = re.compile(r'\W*\b\w{1,3}\b')
 
 def clean_text(text: str) -> str:
-    """Clean a single text string."""
+    """Basic text cleaning for social media content."""
     if not isinstance(text, str):
         return ""
     text = text.lower()
@@ -32,14 +34,11 @@ def clean_text(text: str) -> str:
     return text
 
 def preprocess_texts(texts):
-    """Clean text data: accepts Series, list, or single string."""
-    # If it's a Pandas Series
+    """Apply text cleaning to Series, list, or string input."""
     if isinstance(texts, pd.Series):
         return texts.fillna("").apply(clean_text)
-    # If it's a list of strings
     elif isinstance(texts, list):
         return [clean_text(t) for t in texts]
-    # If it's a single string
     elif isinstance(texts, str):
         return clean_text(texts)
     else:

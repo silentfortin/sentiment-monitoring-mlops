@@ -1,0 +1,108 @@
+name: CI/CD Sentiment Model
+
+on:
+  push:
+    branches: [ main, feature/ci-cd-pipeline ]
+  pull_request:
+    branches: [ main, feature/ci-cd-pipeline ]
+  schedule:
+    # Weekly retraining (Monday at 06:00 UTC)
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-train:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # 3. Install dependencies (requirements + CPU-safe PyTorch)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Force CPU-only PyTorch build for GitHub runners
+          pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+      # 4. Sanity test: check dataset and tokenizer
+      - name: Run sanity tests
+        run: |
+          python - <<'EOF'
+          import pandas as pd
+          from transformers import AutoTokenizer
+          df = pd.read_csv("data/raw/social_sentiment.csv")
+          assert not df.empty, "Dataset is empty!"
+          _ = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+          print("Dataset and tokenizer loaded successfully.")
+          EOF
+
+      # 5. Generate model version tag
+      - name: Set model version tag
+        run: echo "MODEL_VERSION=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+
+      # 6. Train model
+      - name: Run model training
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python src/train.py
+
+      # 7. Run integration tests
+      - name: Run integration tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q tests/integration_test.py
+
+      # 8. Compare with production model and deploy only if improved
+      - name: Compare models and deploy if improved
+        if: success()
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python src/model_compare.py
+
+      # 9. Upload model artifact (optional)
+      - name: Upload model artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roberta_sentiment_model
+          path: models/roberta_sentiment_model/
+
+      # 10. Push promoted model to Hugging Face Hub
+      - name: Push promoted model to Hugging Face
+        if: success()
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import login
+          from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+          login(token="${{ secrets.HF_TOKEN }}")
+
+          repo_id = "CapDimble/sentiment-monitoring-model"
+          model_dir = "models/roberta_sentiment_model"
+
+          if os.path.exists(model_dir):
+              print(f"Pushing model version ${{ env.MODEL_VERSION }} to Hugging Face Hub...")
+              model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+              tokenizer = AutoTokenizer.from_pretrained(model_dir)
+              model.push_to_hub(repo_id, commit_message=f"Auto-deploy {os.getenv('MODEL_VERSION')}")
+              tokenizer.push_to_hub(repo_id)
+              print(f"Model version {os.getenv('MODEL_VERSION')} successfully pushed to {repo_id}")
+          else:
+              print("No new model found for deployment — skipping push.")
+          EOF

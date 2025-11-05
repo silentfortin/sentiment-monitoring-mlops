@@ -1,14 +1,24 @@
+# Core ML and data libraries
 transformers
+datasets
+evaluate
 pandas
 numpy
 scikit-learn
 matplotlib
 seaborn
 requests
+
+# API and tracking (optional)
 fastapi
 uvicorn
 mlflow
-evaluate
+
+# PyTorch CPU build (CI-friendly)
 torch>=2.6.0
 torchvision>=0.21.0
 torchaudio>=2.6.0
+accelerate>=0.26.0
+
+# Testing
+pytest
