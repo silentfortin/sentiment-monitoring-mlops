@@ -53,6 +53,7 @@ sentiment-monitoring-mlops/
 ├── .github/workflows/ci_cd.yml       # CI/CD pipeline definition
 ├── data/
 │   ├── raw/                          # Datasets (training & retraining)
+│   ├── processed/                    # Folder to store reprocessed data (if needed(
 │   └── monitoring/                   # Monitoring logs and sentiment trend visualization
 ├── models/
 │   ├── base_model_metrics.json       # Baseline accuracy reference
@@ -67,7 +68,7 @@ sentiment-monitoring-mlops/
 ├── tests/
 │   └── integration_test.py           # End-to-end integration tests
 ├── notebooks/
-│   └── sentiment_model.ipynb             # Model evaluation and monitoring simulation
+│   └── sentiment_model.ipynb         # Model evaluation and monitoring simulation
 ├── requirements.txt                  # Python dependencies
 └── README.md                         # Documentation
 ```
