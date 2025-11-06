@@ -1,7 +1,10 @@
 # Sentiment Monitoring MLOps – MachineInnovators Inc.
-[![Report](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1-iHDJ34Qu6vTh_Aaxu7inzflA-LOYYNC?usp=sharing)
 
-[![Sentiment base model](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/silentfortin/sentiment-monitoring-mlops/blob/main/notebooks/sentiment_model.ipynb)
+Project Technical Report:
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1-iHDJ34Qu6vTh_Aaxu7inzflA-LOYYNC?usp=sharing)
+
+Sentiment base model:
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/silentfortin/sentiment-monitoring-mlops/blob/main/notebooks/sentiment_model.ipynb)
 
 
 > Developed as part of **AI Engineering Master – Week 10**
